@@ -14,9 +14,7 @@
   ;; We place argument-type metadata on the function itself, NOT the var,
   ;; otherwise we'll run into trouble when we start re-binding and passing
   ;; the function around during program generation.
-  `(def ~name ~(with-meta `(fn [~@(keys args)] ~doc ~func) {:return-type return-type :arg-types (vec (vals args))})))
-
-;; TODO a pretty-printer for a compound function would be a nice usability addition
+  `(def ~name ~(with-meta `(fn [~@(keys args)] ~doc ~func) {:didact-function true :return-type return-type :arg-types (vec (vals args)) :fname (str name)})))
 
 (defmacro return-type [function]
   "Get the data type for a function's return value"
@@ -29,6 +27,23 @@
 (defmacro arity [function]
   "Get the arity of a given function"
   `(count (:arg-types (meta ~function))))
+
+(defmacro fname [function]
+  "Get the name of a given function"
+  `(:fname (meta ~function)))
+
+(defmacro didact-function? [item]
+  "Is the given item a didact function?"
+  `(= true (:didact-function (meta ~item))))
+
+(defn pretty-print [program]
+  "Pretty print (format, not actually print to out) a program for human readability"
+  ;; This is going to be very simple for now - just stick human readable names in the form.
+  ;; Nothing fancy like linebreaks or indentation just yet!
+  (map #(cond
+         (didact-function? %) (fname %)
+         (seq? %) (pretty-print %) ; Yeah I know this recursion is troublesome - but we're not exactly lifting heavy here
+         :else %) program))
 
 ;;; Terminals
 ;; Note a constant-value terminal generator could be created as so:
