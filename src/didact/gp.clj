@@ -323,16 +323,16 @@
     termination-predicate function-set terminal-set]
      (let [population (create-population population-size function-set terminal-set)]
        (run-gp population maximum-generations fitness-cases fitness-function
-              termination-predicate function-set terminal-set 1 false nil)))
+              termination-predicate function-set terminal-set false nil)))
   ;: External entry with previous best-of-run-individual and old population as seeds
   ([population maximum-generations fitness-cases fitness-function
     termination-predicate function-set terminal-set previous-best-of-run-individual] 
      (run-gp population maximum-generations fitness-cases fitness-function
-             termination-predicate function-set terminal-set 1 false previous-best-of-run-individual))
+             termination-predicate function-set terminal-set false previous-best-of-run-individual))
   ;; Internal recursive entry
-  ([population maximum-generations fitness-cases fitness-function
-    termination-predicate function-set terminal-set current-generation
-    end? best-of-run-individual] ;; TODO I think maximum-generations and current-generation can be combined (recursive, just subtract)
+  ([population generations-left fitness-cases fitness-function
+    termination-predicate function-set terminal-set
+    end? best-of-run-individual]
      (if end?
        {:best-of-run-individual best-of-run-individual,
         :last-population population} ; Used to continue where we left off
@@ -344,11 +344,10 @@
              new-best? (or (nil? best-of-run-individual)
                            (> (:standardized-fitness best-of-run-individual) (:standardized-fitness best-of-generation)))
              best-of-run-individual (if new-best? best-of-generation best-of-run-individual)]
-         (recur new-population maximum-generations fitness-cases fitness-function
+         (recur new-population (- generations-left 1) fitness-cases fitness-function
                 termination-predicate function-set terminal-set 
-                (+ current-generation 1)
-                (or (>= current-generation maximum-generations)
-                    (termination-predicate current-generation maximum-generations (:standardized-fitness best-of-generation) (:hits best-of-generation)))
+                (or (<= generations-left 0)
+                    (termination-predicate (:standardized-fitness best-of-generation) (:hits best-of-generation)))
                 best-of-run-individual)))))
 
 ;; TODO are lists the most efficient data structures to use for populations and fragments?

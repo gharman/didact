@@ -103,9 +103,8 @@
                                      standardized-fitness (reduce + (map first result-list)) 
                                      hits (reduce + (map second result-list))]
                                  (list standardized-fitness hits)))
-          termination-predicate (fn [current-generation maximum-generations best-standardized-fitness best-hits]
-                                    (or (>= current-generation maximum-generations)
-                                        (>= best-hits number-of-fitness-cases)))
+          termination-predicate (fn [best-standardized-fitness best-hits]
+                                  (>= best-hits number-of-fitness-cases))
           result (run-gp 3 3 fitness-cases fitness-function
                          termination-predicate function-set terminal-set)]
       (is (number? (eval (:program (:best-of-run-individual result)))))))) 
