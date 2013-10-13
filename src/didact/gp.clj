@@ -287,11 +287,12 @@
 (defn evaluate-fitness-of-population
   "Loops over the individuals in the population evaluating and recording the fitness and hits."
   [population fitness-cases fitness-function]
-  (map (fn [individual] (let [fitness-result (fitness-function (:program individual) fitness-cases) ;; TODO maybe we should map functions over cases here - not push that into the function!
-	standardized-fitness (first fitness-result)
-	hits (second fitness-result)]
-    (assoc (assoc individual :standardized-fitness standardized-fitness)
-      :hits hits))) population))
+  (map (fn [individual]
+         (let [fitness-case-results (map (partial fitness-function (:program individual)) fitness-cases)
+               standardized-fitness (reduce + (map first fitness-case-results)) 
+               hits (reduce + (map second fitness-case-results))]
+           (assoc (assoc individual :standardized-fitness standardized-fitness)
+             :hits hits))) population))
 
 (defn create-population
   "Creates the population. (Optional) seeded-programs = the first N programs, where N = seed-programs."
@@ -306,8 +307,10 @@
              ;; Generate a new program
              (let [new-ind (new-individual 
                             (create-individual-program function-set terminal-set
-                                                       (cond (or (= @*method-of-generation* :full) (= @*method-of-generation* :grow)) @*max-depth-for-new-individuals*
-                                                             (= @*method-of-generation* :ramped-half-and-half) (+ minimum-depth-of-trees (rem index (- @*max-depth-for-new-individuals* minimum-depth-of-trees))))
+                                                       (cond (or (= @*method-of-generation* :full) (= @*method-of-generation* :grow))
+                                                             @*max-depth-for-new-individuals*
+                                                             (= @*method-of-generation* :ramped-half-and-half)
+                                                             (+ minimum-depth-of-trees (rem index (- @*max-depth-for-new-individuals* minimum-depth-of-trees))))
                                                        true
                                                        (cond (= @*method-of-generation* :full) true
                                                              (= @*method-of-generation* :grow) false
@@ -349,5 +352,3 @@
                 (or (<= generations-left 0)
                     (termination-predicate (:standardized-fitness best-of-generation) (:hits best-of-generation)))
                 best-of-run-individual)))))
-
-;; TODO are lists the most efficient data structures to use for populations and fragments?
