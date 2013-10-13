@@ -92,17 +92,17 @@
                               (struct regression-fitness-case
                                       x
                                       (* 0.5 x x))))
-          fitness-function (fn [program fitness-case]
+          fitness-function (def-fitness-function
                              (let [target-value (:target fitness-case)
                                    iv (:independent-variable fitness-case)
                                    value-from-program (let-eval [x iv] program)
                                    difference (abs (- target-value value-from-program))]
-                               (list difference (if (< difference 0.01) 1 0))))
-          termination-predicate (fn [best-standardized-fitness best-hits]
+                               (struct fitness-result
+                                       difference ; standardized-fitness
+                                       (if (< difference 0.01) true false)))) ; hit?
+          termination-predicate (def-termination-predicate
                                   (>= best-hits number-of-fitness-cases))
           result (run-gp 3 3 fitness-cases fitness-function
                          termination-predicate function-set terminal-set)]
-      (println (pretty-print (:program (:best-of-run-individual result))))
       (is (number? (eval (:program (:best-of-run-individual result)))))))) 
 
-;; TODO f-cases, f-function and t-pred are too complex - we need some sort of generator to simplify! Include the need for the fitness case struct (remove if not required)

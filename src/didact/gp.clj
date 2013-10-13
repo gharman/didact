@@ -37,6 +37,10 @@
     `(eval (list 'let [~@(interleave binding-forms expr-forms)] ~expr))))
 
 ;;; Data structures
+(defstruct fitness-result
+  :standardized-fitness
+  :hit?)
+
 (defstruct individual
   :program
   :from
@@ -289,8 +293,8 @@
   [population fitness-cases fitness-function]
   (map (fn [individual]
          (let [fitness-case-results (map (partial fitness-function (:program individual)) fitness-cases)
-               standardized-fitness (reduce + (map first fitness-case-results)) 
-               hits (reduce + (map second fitness-case-results))]
+               standardized-fitness (reduce + (map :standardized-fitness fitness-case-results)) 
+               hits (reduce + (map #(if (:hit? %) 1 0) fitness-case-results))]
            (assoc (assoc individual :standardized-fitness standardized-fitness)
              :hits hits))) population))
 
@@ -352,3 +356,16 @@
                 (or (<= generations-left 0)
                     (termination-predicate (:standardized-fitness best-of-generation) (:hits best-of-generation)))
                 best-of-run-individual)))))
+
+;;; Structure for the problem space
+(defmacro def-fitness-function [& body]
+  "Create a fitness function. It will bind fitness-case and program, which may be
+   executed with let-eval, and must return a fitness-result structure."
+  `(fn [~'program ~'fitness-case]
+     ~@body))
+
+(defmacro def-termination-predicate [& body]
+  "Create a termination predicate. It will bind best-standardized-fitness and best-hits
+   and must return a boolean for whether to terminate the current execution"
+  `(fn [~'best-standardized-fitness ~'best-hits]
+     ~@body))
