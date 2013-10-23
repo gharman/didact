@@ -77,32 +77,29 @@
       (let [newpop (breed-new-population population function-set terminal-set)]
         (is (= 5 (count newpop)))))))
 
-(defstruct regression-fitness-case
-  :independent-variable
-  :target)
-
 (deftest test-gp-system
   (testing "gp-system"
     ;; Use a regression analysis
     (let [function-set {abs 1, add 1, subtract 1, div 1, multiply 1}
-          terminal-set {integer-random-constant 1}
+          terminal-set {integer-random-constant 1, arg0 1}
           number-of-fitness-cases 5
           fitness-cases (for [index (range number-of-fitness-cases)]
                             (let [x  (/ index number-of-fitness-cases)]
-                              (struct regression-fitness-case
-                                      x
-                                      (* 0.5 x x))))
-          fitness-function (def-fitness-function
-                             (let [target-value (:target fitness-case)
-                                   iv (:independent-variable fitness-case)
-                                   value-from-program (let-eval [x iv] program)
-                                   difference (abs (- target-value value-from-program))]
-                               (struct fitness-result
-                                       difference ; standardized-fitness
-                                       (if (< difference 0.01) true false)))) ; hit?
+                              (list (* 0.5 x x)
+                                      x)))
+          fitness-function fitness-function-number-default
           termination-predicate (def-termination-predicate
                                   (>= best-hits number-of-fitness-cases))
           result (run-gp 3 3 fitness-cases fitness-function
                          termination-predicate function-set terminal-set)]
-      (is (number? (eval (:program (:best-of-run-individual result)))))))) 
+      (let [program (:program (:best-of-run-individual result))
+            prog (wrap-program 1 program)
+            answer (prog 1)
+            nf (:normalized-fitness (:best-of-run-individual result))
+            hits (:hits (:best-of-run-individual result))]
+        ;(println (pretty-print program))
+        ;(println "Normalized Fitness: " nf)
+        ;(println "Hits: " hits)
+        (is (number? answer))))))
+
 
