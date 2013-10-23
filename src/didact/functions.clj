@@ -46,6 +46,8 @@
          :else %) program))
 
 ;;; Terminals
+;; TODO probably a cleaner way to autogenerate these as needed and include in a terminal set
+
 ;; Note a constant-value terminal generator could be created as so:
 ;; (defterminal constant-42 "Constant 42" 42)
 (defterminal floating-point-random-constant
@@ -85,3 +87,39 @@
   "Multiplication"
   {a Number b Number}
   (* a b))
+
+;;; Support generated programs
+;; First set up some terminals to use for function arguments
+(defterminal arg0
+  "An externally-supplied argument to a generated function"
+  'arg0)
+
+(defterminal arg1
+  "An externally-supplied argument to a generated function"
+  'arg1)
+
+(defterminal arg2
+  "An externally-supplied argument to a generated function"
+  'arg2)
+
+(defterminal arg3
+  "An externally-supplied argument to a generated function"
+  'arg3)
+
+(defmacro let-eval
+  "Use let-eval to bind to variables/symbols inside an evaluated expression."
+  [bindings expr]
+  (let [binding-forms (map #(list `quote %) (take-nth 2 bindings))
+	expr-forms (map #(list `list ``quote %) (take-nth 2
+                                                          (rest bindings)))]
+    `(eval (list 'let [~@(interleave binding-forms expr-forms)] ~expr))))
+
+;; Generates: (fn [arg0 arg1] (let-eval [arg0 arg0 arg1 arg1] program))
+(defn wrap-program
+  "Wrap a program as an evaluatable function"
+  [numargs program]
+  (let [args (map #(symbol (str "arg" %)) (range numargs))]
+    (eval `(fn [~@args]
+             (let-eval [~@(reduce concat (map (fn [x] (list x x)) args))]
+                       ~program)))))
+ 
