@@ -32,8 +32,8 @@
   `(let [~'name (symbol (quote ~name))
          ~'footprint (Footprint. ~return-type ~doc ~args)]
      (dosync
-      (alter *knowledge* conj {~'name (Lesson. ~'footprint () #() ())})
-      (intern *ns* ~'name #()))))
+      (alter *knowledge* conj {~'name (Lesson. ~'footprint () () ())})
+      (intern *ns* ~'name #())))) ;; TODO Dummy function should still use the correct arity
 
 (defn example
   "Create a single example to feed into teach"
@@ -54,45 +54,50 @@
      (dosync 
       (if (nil? (get @*knowledge* ~'name)) ; Create the record if it doesn't already exist
         (println "Must plan before teaching.") ;; TODO throw exception
-        (alter *knowledge* update-in [~'name :examples] concat (map eval ~'examples))))))
+        (alter *knowledge* update-in [~'name :examples] concat (map eval ~'examples)))
+      nil)))
 
+;; TODO we should track an internal function & terminal set, combining defaults and learned functions - not take as args here
 (defmacro learn ; (basically set up & execute a gp run based on *knowledge* base for a given function name
   "Instruct Didact to work on learning a specific named function that has been taught in the past.
    At the conclusion, the best-function will be interned into the current namespace under the given symbol."
-  [name & {:keys [function-set terminal-set] :or {function-set default-function-set,
-                                                  terminal-set default-terminal-set}}]
-  `(let [~'population-size 50
-         ~'max-generations 20
+  [name & {:keys [function-set terminal-set] :or {function-set 'default-function-set,
+                                                  terminal-set 'default-terminal-set}}]
+  `(let [~'population-size 5 ;; TODO small sizes for development; tune these later
+         ~'max-generations 5
+         ~'name (quote ~name)
          ~'lesson (get @*knowledge* ~'name)
          ~'footprint (:footprint ~'lesson)
-         ~'examples (:examples ~'lesson)
+         ~'numargs (count (:args ~'footprint))
+         ;; Add arguments to the terminal set (f/argN)
+         ~'terminal-set (merge ~terminal-set
+                               (into {} (for [~'arg (map #(eval (symbol (str "f/" %))) (f/generate-arg-terminals ~'numargs))]
+                                          {~'arg 1})))
+         ~'examples (:examples ~'lesson) ;; TODO validate examples against footprint
          ~'best-function (:best-function ~'lesson) ;; TODO use
          ~'last-population (:last-population ~'lesson) ;; TODO use
-         ~'fitness-cases ~'examples ;; TODO validate examples against footprint
-         ~'fitness-function (def-fitness-function
-                              (let [value-from-fc (let-eval [
-                                                             ;; Do I really need footprint here, actually? I just need # of args? Why do I need types?
-
-                                                             ;; The whole point of binding x is to allow input args to go wherever in the generated program.
-                                    ]
-                                ) ;; TODO use footprint and Example struct
-                              ;; fitness-case is bound
+         ~'fitness-cases (map #(conj (:arguments %) (:return-value %)) ~'examples) ;; GP engine expects a list, first = return value, rest = args
+         ~'fitness-function ~'gp/fitness-function-number-default ;; TODO dispatch on return type
          ~'termination-predicate (gp/def-termination-predicate
-                                  (>= ~'best-hits (count ~'fitness-cases)))
+                                   (>= ~'best-hits (count ~'fitness-cases)))
          ~'result (gp/run-gp ~'population-size ~'max-generations
                              ~'fitness-cases ~'fitness-function
-                             ~'termination-predicate ~'function-set ~'terminal-set) ;; TODO diff arg set if we have a population already in *knowledge* that we want to continue with
+                             ~'termination-predicate ~function-set ~'terminal-set) ;; TODO diff arg set if we have a population already in *knowledge* that we want to continue with
          ;; TODO how do we know input/output types of high-lev function? Need to enhance the GP section to cover this - probably result in a change to run-gp's footprint
          ~'best-program (:program (:best-of-run-individual ~'result))
+         ~'best-program-executable (f/wrap-program ~'numargs ~'best-program)
          ~'last-population (:last-population ~'result)] ; Note the popluation is gp/individual structs, not loose functions
      (dosync
-      (intern *ns* ~'name ~'best-program)
-      (alter *knowledge* assoc-in [name :best-function] ~'best-program)
-      (alter *knowledge* assoc-in [name :last-population] ~'last-population))))
+        (alter *knowledge* assoc-in [~'name :best-function] ~'best-program)
+        (alter *knowledge* assoc-in [~'name :last-population] ~'last-population)
+        (intern *ns* ~'name ~'best-program-executable)
+        nil)))
 
-(defn recite
+(defmacro recite
   "Have didact print its current implementation of a given function, along with
    any relevant metrics."
   [name]
-  (f/pretty-print name))
+  `(f/pretty-print (:best-function (get @*knowledge* '~name))))
+
+
 

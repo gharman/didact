@@ -23,10 +23,13 @@
 (def ^:dynamic *crossover-fraction* (ref 0.2))
 
 ;; Can be any one of :grow, :full, :ramped-half-and-half
-(def ^:dynamic *method-of-generation* (ref :ramped-half-and-half))
+(def ^:dynamic *method-of-generation* (ref :full))
 
 ;; The maximum depth for individuals of the initial random generation
 (def ^:dynamic *max-depth-for-new-individuals* (ref 7))
+
+;; The minimum depth for individuals of the initial random generation
+(def ^:dynamic *min-depth-for-new-individuals* (ref 4))
 
 ;;; Data structures
 (defstruct fitness-result
@@ -286,7 +289,7 @@
   (map (fn [individual]
          (let [numargs (- (count (first fitness-cases)) 1) ; We'll make a little assumption here...
                program (f/wrap-program numargs (:program individual))
-               fitness-case-results (map (partial fitness-function program) fitness-cases)
+               fitness-case-results  (map (partial fitness-function program) fitness-cases)
                standardized-fitness (reduce + (map :standardized-fitness fitness-case-results)) 
                hits (reduce + (map #(if (:hit? %) 1 0) fitness-case-results))]
            (assoc (assoc individual :standardized-fitness standardized-fitness)
@@ -296,10 +299,10 @@
   "Creates the population. (Optional) seeded-programs = the first N programs, where N = seed-programs."
   ([population-size function-set terminal-set] (create-population population-size function-set terminal-set ()))
   ([population-size function-set terminal-set seeded-programs]
-     (loop [index 0 seeded-program seeded-programs result ()] ;; Index necessary for ramped-half-and-half
+     (loop [index 0 seeded-programs seeded-programs result ()] ;; Index necessary for ramped-half-and-half
        (if (>= index population-size)
          result
-         (let [minimum-depth-of-trees 1
+         (let [minimum-depth-of-trees @*min-depth-for-new-individuals*
                full-cycle? false]
            (if (>= 0 (count seeded-programs))
              ;; Generate a new program
@@ -313,9 +316,9 @@
                                                        (cond (= @*method-of-generation* :full) true
                                                              (= @*method-of-generation* :grow) false
                                                              (= @*method-of-generation* :ramped-half-and-half) full-cycle?)))]
-               (recur (inc index) seeded-programs (conj result new-ind)))
+               (recur (inc index) () (conj result new-ind)))
              ;; Use a seeded program
-             (recur (inc index) (rest seeded-programs) (conj result (first seeded-programs)))))))))
+             (recur (inc index) (rest seeded-programs) (conj result (first seeded-programs))))))))) ;; TODO this is a bug - actually need to wrap the seeded program as an individual?
 
 (defn run-gp
   "Loops until the termination predicate indicates a stop or maximum generations are reached"

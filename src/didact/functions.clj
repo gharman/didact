@@ -114,11 +114,16 @@
                                                           (rest bindings)))]
     `(eval (list 'let [~@(interleave binding-forms expr-forms)] ~expr))))
 
+(defn generate-arg-terminals
+  "Generate terminal arguments"
+  [numargs]
+  (map #(symbol (str "arg" %)) (range numargs)))
+
 ;; Generates: (fn [arg0 arg1] (let-eval [arg0 arg0 arg1 arg1] program))
 (defn wrap-program
   "Wrap a program as an evaluatable function"
   [numargs program]
-  (let [args (map #(symbol (str "arg" %)) (range numargs))]
+  (let [args (generate-arg-terminals numargs)]
     (eval `(fn [~@args]
              (let-eval [~@(reduce concat (map (fn [x] (list x x)) args))]
                        ~program)))))
