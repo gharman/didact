@@ -30,7 +30,7 @@
 
 (defmacro fname [function]
   "Get the name of a given function"
-  `(:fname (meta ~function)))
+  `(symbol (:fname (meta ~function))))
 
 (defmacro didact-function? [item]
   "Is the given item a didact function?"
