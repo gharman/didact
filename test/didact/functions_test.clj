@@ -17,7 +17,7 @@
     (is (= true (didact-function? add)))
     (is (= false (didact-function? +))))
   (testing "name"
-    (is (= "add" (fname add)))))
+    (is (= 'add (fname add)))))
 
 
 
