@@ -99,5 +99,14 @@
   [name]
   `(f/pretty-print (:best-function (get @*knowledge* '~name))))
 
+(defn tableau
+  "List (as a human-readble string) all learned functions"
+  []
+  (doall
+   (for [fu (keys @*knowledge*)]
+     (println fu)))
+  nil)
 
+
+  
 
