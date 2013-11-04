@@ -20,7 +20,7 @@
 (def ^:dynamic *knowledge* (ref {})) ; Key = symbol; value = lesson struct
 
 (defrecord Footprint [return-type docstring args])
-(defrecord Lesson [footprint examples best-function last-population])
+(defrecord Lesson [footprint examples best-function best-fitness last-population])
 
 (def default-terminal-set {f/floating-point-random-constant 1})
 (def default-function-set {f/abs 1, f/add 1, f/subtract 1, f/div 1, f/multiply 1}) ;; TODO should intern everything from functions in this NS
@@ -33,7 +33,7 @@
   `(let [~'name (symbol (quote ~name))
          ~'footprint (Footprint. ~return-type ~doc ~args)]
      (dosync
-      (alter *knowledge* conj {~'name (Lesson. ~'footprint () () ())})
+      (alter *knowledge* conj {~'name (Lesson. ~'footprint () () Integer/MAX_VALUE ())}) ; MAX_VALUE is the worst possible fitness (0 is best)
       (intern *ns* ~'name #())))) ;; TODO Dummy function should still use the correct arity
 
 (defn example
@@ -56,7 +56,7 @@
       (if (nil? (get @*knowledge* ~'name)) ; Create the record if it doesn't already exist
         (println "Must plan before teaching.") ;; TODO throw exception
         (alter *knowledge* update-in [~'name :examples] concat (map eval ~'examples)))
-      nil)))
+      (println "Examples known: " (count (:examples (get @*knowledge* ~'name)))))))
 
 ;; TODO we should track an internal function & terminal set, combining defaults and learned functions - not take as args here
 (defmacro learn ; (basically set up & execute a gp run based on *knowledge* base for a given function name
@@ -75,21 +75,31 @@
                                (into {} (for [~'arg (map #(eval (symbol (str "f/" %))) (f/generate-arg-terminals ~'numargs))]
                                           {~'arg 1})))
          ~'examples (:examples ~'lesson) ;; TODO validate examples against footprint
-         ~'best-function (:best-function ~'lesson) ;; TODO use
-         ~'last-population (:last-population ~'lesson) ;; TODO use
+         ~'best-function (:best-function ~'lesson)
+         ~'best-fitness (:best-fitness ~'lesson)
+         ~'last-population (:last-population ~'lesson)
          ~'fitness-cases (map #(conj (:arguments %) (:return-value %)) ~'examples) ;; GP engine expects a list, first = return value, rest = args
          ~'fitness-function ~'gp/fitness-function-number-default ;; TODO dispatch on return type
          ~'termination-predicate (gp/def-termination-predicate
                                    (>= ~'best-hits (count ~'fitness-cases)))
-         ~'result (gp/run-gp ~'population-size ~'max-generations
-                             ~'fitness-cases ~'fitness-function
-                             ~'termination-predicate ~function-set ~'terminal-set) ;; TODO diff arg set if we have a population already in *knowledge* that we want to continue with
+         ~'result (if (empty? ~'last-population)
+                    (gp/run-gp ~'population-size ~'max-generations
+                               ~'fitness-cases ~'fitness-function
+                               ~'termination-predicate ~function-set ~'terminal-set)
+                    (gp/run-gp ~'last-population ~'max-generations
+                               ~'fitness-cases ~'fitness-function
+                               ~'termination-predicate ~function-set ~'terminal-set
+                               (assoc (gp/new-individual ~'best-function)
+                                 :standardized-fitness ~'best-fitness)))
          ;; TODO how do we know input/output types of high-lev function? Need to enhance the GP section to cover this - probably result in a change to run-gp's footprint
-         ~'best-program (:program (:best-of-run-individual ~'result))
-         ~'best-program-executable (f/wrap-program ~'numargs ~'best-program)
+         ~'new-best-function (:program (:best-of-run-individual ~'result))
+         ~'new-best-fitness (:standardized-fitness (:best-of-run-individual ~'result))
+         ~'best-program-executable (f/wrap-program ~'numargs ~'new-best-function)
          ~'last-population (:last-population ~'result)] ; Note the popluation is gp/individual structs, not loose functions
+     (println "Fitness of best function (lower is better): " ~'new-best-fitness)
      (dosync
-        (alter *knowledge* assoc-in [~'name :best-function] ~'best-program)
+        (alter *knowledge* assoc-in [~'name :best-function] ~'new-best-function)
+        (alter *knowledge* assoc-in [~'name :best-fitness] ~'new-best-fitness)
         (alter *knowledge* assoc-in [~'name :last-population] ~'last-population)
         (intern *ns* ~'name ~'best-program-executable)
         nil)))
