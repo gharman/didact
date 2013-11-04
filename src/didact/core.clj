@@ -1,6 +1,7 @@
 (ns didact.core
   (:gen-class)
-  (:use [clojure.walk])
+  (:use [clojure.walk]
+        [clojure.repl :only (doc source)])
   (:require [didact.functions :as f]
             [didact.gp :as gp]))
 
