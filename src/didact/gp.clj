@@ -283,15 +283,18 @@
     ;; Create a new population list containing normalized fitness values
     (map normalize-fitness-values adjusted-fitness-population (cycle (list sum-of-adjusted-fitnesses)))))
 
+(defn- average [lst]
+  (/ (reduce + lst) (count lst)))
+
 (defn evaluate-fitness-of-population
-  "Loops over the individuals in the population evaluating and recording the fitness and hits."
+  "Loops over the individuals in the population evaluating and recording the average fitness and average hits."
   [population fitness-cases fitness-function]
   (map (fn [individual]
          (let [numargs (- (count (first fitness-cases)) 1) ; We'll make a little assumption here...
                program (f/wrap-program numargs (:program individual))
                fitness-case-results  (map (partial fitness-function program) fitness-cases)
-               standardized-fitness (reduce + (map :standardized-fitness fitness-case-results)) 
-               hits (reduce + (map #(if (:hit? %) 1 0) fitness-case-results))]
+               standardized-fitness (average (map :standardized-fitness fitness-case-results)) 
+               hits (average (map #(if (:hit? %) 1 0) fitness-case-results))]
            (assoc (assoc individual :standardized-fitness standardized-fitness)
              :hits hits))) population))
 
