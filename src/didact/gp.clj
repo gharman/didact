@@ -321,7 +321,7 @@
                                                              (= @*method-of-generation* :ramped-half-and-half) full-cycle?)))]
                (recur (inc index) () (conj result new-ind)))
              ;; Use a seeded program
-             (recur (inc index) (rest seeded-programs) (conj result (first seeded-programs))))))))) ;; TODO this is a bug - actually need to wrap the seeded program as an individual?
+             (recur (inc index) (rest seeded-programs) (conj result (new-individual (first seeded-programs))))))))))
 
 (defn run-gp
   "Loops until the termination predicate indicates a stop or maximum generations are reached"
