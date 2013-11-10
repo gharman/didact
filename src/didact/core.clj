@@ -55,7 +55,9 @@
      (dosync 
       (if (nil? (get @*knowledge* ~'name)) ; Create the record if it doesn't already exist
         (println "Must plan before teaching.") ;; TODO throw exception
-        (alter *knowledge* update-in [~'name :examples] concat (map eval ~'examples)))
+        (dosync
+         (alter *knowledge* update-in [~'name :examples] concat (map eval ~'examples))
+         (alter *knowledge* assoc-in [~'name :best-fitness] Integer/MAX_VALUE)))
       (println "Examples known: " (count (:examples (get @*knowledge* ~'name)))))))
 
 ;; TODO we should track an internal function & terminal set, combining defaults and learned functions - not take as args here
