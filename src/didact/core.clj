@@ -22,11 +22,23 @@
 (defrecord Footprint [return-type docstring args])
 (defrecord Lesson [footprint examples best-function best-fitness last-population])
 
+(defn- display-knowledge
+  "Development function to display the knowledge base in a human-parsable manner"
+  []
+  (doseq [func (keys @*knowledge*)]
+    (let [lesson (get @*knowledge* func)
+          footprint (:footprint lesson)
+          best-function-size (gp/count-crossover-points (:best-function lesson))
+          best-fitness (:best-fitness lesson)]
+      (println "Function: " func " " footprint)
+      (println "   Best size: " best-function-size " Best fitness: " best-fitness))))
+
 (def default-terminal-set {f/floating-point-random-constant 1})
 (def default-function-set {f/abs 1, f/add 1, f/subtract 1, f/div 1, f/multiply 1}) ;; TODO should intern everything from functions in this NS
 
 (defmacro plan
   "Plan future learning (by declaring a functional footprint.)
+
    This must be done in order to teach the function.
    Args should be a map of name to datatype."
   [return-type name ^String doc args]
