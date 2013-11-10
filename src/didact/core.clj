@@ -77,12 +77,15 @@
   "Instruct Didact to work on learning a specific named function that has been taught in the past.
    At the conclusion, the best-function will be interned into the current namespace under the given symbol.
    Didact will continue to learn for _howlong_ seconds (default 20)"
-  [name & {:keys [howlong function-set terminal-set] :or {function-set 'default-function-set,
-                                                          terminal-set 'default-terminal-set
-                                                          howlong 20}}]
+  [name & {:keys [howlong pop-size max-gens function-set terminal-set]
+           :or {howlong 20
+                pop-size 40
+                max-gens 10
+                function-set 'default-function-set
+                terminal-set 'default-terminal-set}}]
   `(let [~'stoptime (+ (* 1000 ~howlong) (System/currentTimeMillis))
-         ~'population-size 40 
-         ~'max-generations 100
+         ~'population-size ~pop-size 
+         ~'max-generations ~max-gens
          ~'name (quote ~name)
          ~'lesson (get @*knowledge* ~'name)
          ~'footprint (:footprint ~'lesson)
