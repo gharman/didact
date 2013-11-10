@@ -73,13 +73,16 @@
       (println "Examples known: " (count (:examples (get @*knowledge* ~'name)))))))
 
 ;; TODO we should track an internal function & terminal set, combining defaults and learned functions - not take as args here
-(defmacro learn ; (basically set up & execute a gp run based on *knowledge* base for a given function name
+(defmacro learn 
   "Instruct Didact to work on learning a specific named function that has been taught in the past.
-   At the conclusion, the best-function will be interned into the current namespace under the given symbol."
-  [name & {:keys [function-set terminal-set] :or {function-set 'default-function-set,
-                                                  terminal-set 'default-terminal-set}}]
-  `(let [~'population-size 5 ;; TODO small sizes for development; tune these later
-         ~'max-generations 5
+   At the conclusion, the best-function will be interned into the current namespace under the given symbol.
+   Didact will continue to learn for _howlong_ seconds (default 20)"
+  [name & {:keys [howlong function-set terminal-set] :or {function-set 'default-function-set,
+                                                          terminal-set 'default-terminal-set
+                                                          howlong 20}}]
+  `(let [~'stoptime (+ (* 1000 ~howlong) (System/currentTimeMillis))
+         ~'population-size 40 
+         ~'max-generations 100
          ~'name (quote ~name)
          ~'lesson (get @*knowledge* ~'name)
          ~'footprint (:footprint ~'lesson)
@@ -95,7 +98,8 @@
          ~'fitness-cases (map #(conj (:arguments %) (:return-value %)) ~'examples) ;; GP engine expects a list, first = return value, rest = args
          ~'fitness-function ~'gp/fitness-function-number-default ;; TODO dispatch on return type
          ~'termination-predicate (gp/def-termination-predicate
-                                   (>= ~'best-hits (count ~'fitness-cases)))
+                                   (or (> (System/currentTimeMillis) ~'stoptime)
+                                    (>= ~'best-hits (count ~'fitness-cases))))
          ~'result (if (empty? ~'last-population)
                     (gp/run-gp ~'population-size ~'max-generations
                                ~'fitness-cases ~'fitness-function
